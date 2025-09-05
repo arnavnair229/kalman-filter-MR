@@ -27,6 +27,8 @@ $$
 - ADF on residuals: $p = 0.021$ (residuals stationary at 5% level)  
 - Half-life: $\approx 57.5$ days  
 - Rolling beta standard deviation: 0.291 (unstable hedge ratio)  
+
+#### However, stocks are not alwasy cointegrated and can deviated and cross paths along the way. How do we fix that and make them cointegrated?
 ---
 
 ### Step 2: From Linear Regression to Dynamic Parameters
@@ -53,7 +55,7 @@ $$
 so that at each time step $t$, the spread
 
 $$
-s_t = y_{1t} - \mu_t - \gamma_t y_{2t}
+s_t = y_{1t} - \gamma_t y_{2t}
 $$
 
 remains stationary and mean-reverting around zero.
@@ -181,9 +183,14 @@ $$
 
 - Time series of $\mu_t$ (intercept)  
 - Time series of $\gamma_t$ (hedge ratio)  
-- Spread $s_t$  
-
 ![Filtered Plot](results/mu_gamma.png)
+
+
+
+
+
+
+- Spread $s_t$  
 ![Filtered Plot](results/Stationary.png)
 
 ---
