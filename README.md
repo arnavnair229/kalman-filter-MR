@@ -31,8 +31,9 @@ $$
 **Verdict summary:**  
 
 $$
-\{ y\_\text{level\_nonstationary}: \text{True}, x\_\text{level\_nonstationary}: \text{False}, \varepsilon\_\text{stationary}: \text{False}, \text{half-life reasonable}: \text{True}, \beta\_\text{stable}: \text{False} \}
+\{ y\_\text{level\_nonstationary}: \text{True},\; x\_\text{level\_nonstationary}: \text{False},\; \varepsilon\_\text{stationary}: \text{False},\; \text{half-life reasonable}: \text{True},\; \beta\_\text{stable}: \text{False} \}
 $$
+
 
 ---
 
