@@ -1,244 +1,89 @@
-## Methodology
+# Kalman-Filter Pairs Trading (EWH/EWZ)
 
-### Step 1: Pair Selection & Statistical Checks
-Before applying the Kalman filter, we verify that the chosen stocks form a valid pair:
+A dynamic hedge-ratio pairs strategy on two country ETFs, tested honestly: no look-ahead, trading costs, next-day fills and walk-forward parameter selection on pinned data.
 
-1. Unit root tests (ADF, KPSS): ensure both series are $I(1)$.  
-2. Engle-Granger cointegration test: ensures the residuals are stationary.  
-3. Half-life estimation: checks how quickly the spread mean-reverts.  
-4. Rolling betas: test for hedge ratio stability.  
+**Result: this pair shows no tradable edge out of sample.** The walk-forward Sharpe at 5 bps per side is -1.17, and its 95% block-bootstrap interval runs from -2.10 to 0.44. The value of this repo is the filter, the test harness and the reasons the earlier, better-looking backtest did not hold up.
 
-Formally, an OLS regression is first run:
+## Run it
 
-$$
-y_{1t} = \alpha + \beta y_{2t} + \varepsilon_t
-$$
+```bash
+pip install -r requirements.txt
+python src/run_all.py        # rebuilds results/ from data/prices.csv, same numbers every run
+python src/fetch_data.py     # optional: re-download prices (this changes the pinned data)
+```
 
-and we test whether the residuals $\varepsilon_t$ are stationary.
+The notebooks in `scripts/` show the cointegration checks and the filter's outputs, and read the same pinned file.
 
-**Example diagnostics (from one stock pair):**
+## Results
 
-$$
-\hat{\beta} = -0.411, \quad \hat{\alpha} = 4.196
-$$
+Daily data from 2022-01-03 to 2026-10-30. Each quarter, parameters are chosen by Sharpe on the prior 504 trading days and traded for the next 63 days, which gives 708 out-of-sample days. Exposure is 1x gross, with 0.5% a year charged on the short leg.
 
-- KPSS test: confirms one series is $I(1)$ ($p < 0.05$)  
-- Engle-Granger p-value: 0.376 (weak evidence of cointegration)  
-- ADF on residuals: $p = 0.021$ (residuals stationary at 5% level)  
-- Half-life: $\approx 57.5$ days  
-- Rolling beta standard deviation: 0.291 (unstable hedge ratio)  
+| Walk-forward test | CAGR | Sharpe | Max drawdown | Round trips | Win rate |
+|---|---|---|---|---|---|
+| 0 bps per side | -3.3% | -0.80 | -9.4% | 26 | 50% |
+| **5 bps per side** | **-4.4%** | **-1.17** | **-11.8%** | **17** | **41%** |
+| 10 bps per side | -4.4% | -1.42 | -11.9% | 9 | 22% |
 
-#### However, stocks are not alwasy cointegrated and can deviated and cross paths along the way. How do we fix that and make them cointegrated?
----
+The strategy is in the market only 2-6% of days, so these results rest on few trades. Treat them as "no evidence of an edge", not a precise estimate. Full output is in `results/metrics.json`.
 
-### Step 2: From Linear Regression to Dynamic Parameters
-The spread of the log prices of two stocks is defined as:
+![Walk-forward equity](results/walk_forward_equity.png)
 
-$$
-s_t = y_{1t} - \gamma y_{2t} = \mu + \varepsilon_t
-$$
+### Why win rate misleads here
 
-where $\gamma$ allows the spread to be centered around $\mu$.
+One fixed parameter set (`q=1e-4`, 60-day window, entry 2.0, exit 0.5), run over the full sample at 5 bps, wins 64% of its 47 round trips and still has a Sharpe of 0.07. Average wins are smaller than average losses (+0.8% against -1.3%), so a high win rate does not pay.
 
-Then:
+## What changed from the original version
 
-$$
-y_{1t} = \mu + \gamma y_{2t} + \varepsilon_t
-$$
+| Problem in the original | Fix |
+|---|---|
+| The spread used the filter state *after* updating on today's price | The spread is now the one-step-ahead innovation, built from the state known at t-1 |
+| `bfill()` on the rolling noise estimate put future data in the first 50 days | The estimate uses data through t-1, with a fixed floor during warm-up |
+| No end date, so results changed daily (the OLS beta moved from -0.41 to +0.53) | Prices are pinned in `data/prices.csv` |
+| Same-bar fills and no costs | Signal at close t, fill at close t+1, with costs and short borrow |
+| One in-sample window | Walk-forward parameter selection |
 
-Assuming constant $\mu$ and $\gamma$ is restrictive since market relationships change over time. To capture this, the coefficients are allowed to vary dynamically:
+Removing the look-ahead was not what hurt performance. On the same fixed parameters, the old spread gets a Sharpe of -0.23 and the new one 0.07. Out-of-sample selection is what takes the result negative.
 
-$$
-y_{1t} = \mu_t + \gamma_t y_{2t} + \varepsilon_t
-$$
+### The earlier QuantConnect backtest
 
-so that at each time step $t$, the spread
+`results/QC_Results.png` and `results/QC_Graph.png` are kept for the record. That run showed a 60% win rate, 7.4% CAGR, Sharpe 0.14, PSR 19%, and an 11.5% drawdown from 226 orders. It charged **$0 in fees** and was in-sample. Its algorithm code is not in this repo, so it cannot be reproduced from here.
 
-$$
-s_t = y_{1t} - \gamma_t y_{2t}
-$$
+## Is the pair cointegrated?
 
-remains stationary and mean-reverting around zero.
+No. A time-varying hedge ratio does not change that: a filter that re-fits every day will make almost any residual look stationary, so a stationary-looking spread here is not evidence of a relationship.
 
----
+| Test | First 504 days | Full sample |
+|---|---|---|
+| Engle-Granger p-value | 0.19 | 0.28 |
+| ADF on log EWH, p-value | 0.53 | 0.72 |
+| ADF on log EWZ, p-value | 0.12 | 0.44 |
 
-### Step 3: Kalman Filter Mechanics
-At each time step, the Kalman filter runs two main steps: prediction and update.
+## The model
 
-#### 1. Predict
+Log prices follow $y_{1t} = \mu_t + \gamma_t y_{2t} + \varepsilon_t$, with the state $x_t = [\mu_t, \gamma_t]^\top$ as a random walk.
 
-$$
-\hat{x}_{t}^{-} = A \hat{x}_{t-1}, \quad
-P_{t}^{-} = A P_{t-1} A^\top + Q
-$$
+**Predict:**
 
-- $\hat{x}_{t}^{-}$: predicted state vector (prior) at time $t$  
-- $\hat{x}_{t-1}$: updated state from previous step  
-- $A$: state transition matrix (identity for random walk)  
-- $P_{t}^{-}$: predicted error covariance  
-- $P_{t-1}$: updated error covariance from previous step  
-- $Q$: process noise covariance  
+$$x_t^- = x_{t-1}, \quad P_t^- = P_{t-1} + Q$$
 
-> Predicts the next state and its uncertainty before seeing the observation.
+**Spread (the innovation), using only what was known at t-1:**
 
-#### 2. Compute Kalman Gain & Update
+$$s_t = y_{1t} - H_t x_t^-, \quad H_t = [1, y_{2t}]$$
 
-$$
-K_t = P_{t}^{-} H_t^\top (H_t P_{t}^{-} H_t^\top + R)^{-1}
-$$
+**Update:**
 
-$$
-\hat{x}_t = \hat{x}_{t}^{-} + K_t (z_t - H_t \hat{x}_{t}^{-})
-$$
+$$K_t = P_t^- H_t^\top (H_t P_t^- H_t^\top + R_t)^{-1}, \quad x_t = x_t^- + K_t s_t, \quad P_t = (I - K_t H_t) P_t^-$$
 
-$$
-P_t = (I - K_t H_t) P_{t}^{-}
-$$
+Here $Q = qI$ and $R_t$ is the rolling 50-day variance of $y_1$ returns through t-1.
 
-- $K_t$: Kalman gain  
-- $H_t$: observation matrix, here $[1, y_{2t}]$  
-- $R$: observation noise covariance  
-- $z_t$: observed measurement ($y_{1t}$)  
-- $\hat{x}_t$: updated state estimate (posterior)  
-- $P_t$: updated error covariance  
+**Trading rules:** the z-score compares $s_t$ with the mean and standard deviation of the previous `window` days. Enter beyond `entry`, exit inside `exit`, and stop out at 3.5. Dollar weights are $\pm 1/(1+|\gamma|)$ on $y_1$ and $\mp\gamma/(1+|\gamma|)$ on $y_2$, with $\gamma$ frozen at entry.
 
-> Updates the predicted state using the new observation.
+![Hedge ratio and intercept](results/mu_gamma.png)
 
-#### 3. Compute Spread
+![Spread z-score](results/Stationary.png)
 
-$$
-s_t = y_{1t} - \mu_t - \gamma_t y_{2t}
-$$
+## Limits
 
-- $s_t$: residual spread at time $t$  
-- $\mu_t, \gamma_t$: dynamically estimated intercept and hedge ratio  
-
-> The spread $s_t$ is expected to mean-revert around zero.
-
----
-
-### Step 4: Implementation
-The Kalman filter is implemented in `pairs_trading_kalman.ipynb` as a custom Python class estimating dynamic $\mu_t$ and $\gamma_t$.
-
-#### Initialization
-
-$$
-x_0 =
-\begin{bmatrix}
-0 \\
-1
-\end{bmatrix}, \quad
-P_0 = I
-$$
-
-- $x_0$: initial state vector $[\mu_0, \gamma_0]^T$  
-- $P_0$: initial covariance matrix  
-- $I$: $2\times2$ identity matrix  
-
-> Assumes neutral intercept and unit hedge ratio at $t=0$.
-
-#### Noise Terms
-
-- Process noise $Q$: represents uncertainty in $\mu_t$ and $\gamma_t$  
-- Observation noise $R$: rolling variance of $y_1$  
-
-#### Dynamic Estimation
-
-Predict:
-
-$$
-x_t^- = A x_{t-1}, \quad P_t^- = A P_{t-1} A^\top + Q
-$$
-
-Update:
-
-$$
-K_t = P_t^- H_t^\top (H_t P_t^- H_t^\top + R)^{-1}
-$$
-
-$$
-x_t = x_t^- + K_t (z_t - H_t x_t^-)
-$$
-
-$$
-P_t = (I - K_t H_t) P_t^-
-$$
-
-- $x_t = [\mu_t, \gamma_t]^T$: updated estimates  
-- $H_t = [1, y_{2t}]$: observation matrix  
-- $z_t = y_{1t}$: observed log-price  
-- $K_t$: Kalman gain  
-
-> Filter adjusts $\mu_t$ and $\gamma_t$ to best fit new observations.
-
-#### Compute Spread
-
-$$
-s_t = y_{1t} - \mu_t - \gamma_t y_{2t}
-$$
-
-> Updated $\mu_t$ and $\gamma_t$ are used to compute the spread.
-
-#### Outputs
-
-- Time series of $\mu_t$ (intercept)  
-- Time series of $\gamma_t$ (hedge ratio)  
-![Filtered Plot](results/mu_gamma.png)
-
-
-
-
-
-
-- Spread $s_t$  
-![Filtered Plot](results/Stationary.png)
-
----
-
-### Step 5: QuantConnect Implementation
-The Kalman filter-based pairs trading strategy is implemented in QuantConnect, trading $y_1$ and $y_2$ dynamically based on the estimated spread and hedge ratio.
-
-#### Trading Logic
-
-- Z-score of spread:
-
-$$
-z_t = \frac{s_t - \text{mean}(s_{t-w:t})}{\text{std}(s_{t-w:t})}
-$$
-
-- Entry Rules: Initiate positions when the spread deviates significantly from its mean. Use $\gamma_t$ for market-neutral sizing:
-
-$$
-\text{hedge shares} = \text{base shares} \cdot \gamma_t \cdot \frac{y_1}{y_2}
-$$
-
-- Exit Rules: Close positions when spread reverts or losses exceed risk thresholds.
-
-- Realized P&L:
-
-$$
-\text{PNL}_t = (y_{1t} - y_{1,\text{entry}}) \cdot q_1 + (y_{2t} - y_{2,\text{entry}}) \cdot q_2
-$$
-
-#### Outputs & Visualization
-
-![Filtered Plot](results/QC_Graph.png)
-![Filtered Plot](results/QC_Results.png)
-
----
-
-## Future Work
-- Explore alternative scaling of process and observation noise for robustness  
-- Extend to multi-asset pairs or ETFs for portfolio-level strategies  
-- Conduct comprehensive backtesting with transaction costs  
-- Incorporate dynamic volatility metrics (e.g., VIX) for adaptive process noise  
-
----
-
-## Tools & Libraries
-- Python 3.x  
-- [polars](https://www.pola.rs/) for data manipulation  
-- [yfinance](https://pypi.org/project/yfinance/) for stock data  
-- [statsmodels](https://www.statsmodels.org/) for statistical tests and regressions  
-- [matplotlib](https://matplotlib.org/) for plotting  
-- [numpy](https://numpy.org/) & [pandas](https://pandas.pydata.org/) for array and DataFrame operations
+- This is one pair, chosen before the test. Results say nothing about pairs trading in general.
+- Costs are flat. There is no market impact model, and ETF dividends enter only through adjusted closes.
+- The search grid is small (54 combinations), but selection on two-year Sharpe is itself noisy.

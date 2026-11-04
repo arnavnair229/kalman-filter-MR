@@ -1,0 +1,193 @@
+{
+  "data": {
+    "pair": "EWH/EWZ",
+    "start": "2022-01-03",
+    "end": "2026-10-30"
+  },
+  "cointegration": {
+    "formation": {
+      "engle_granger_p": 0.1892252863527395,
+      "adf_ewh_level_p": 0.5315116221805626,
+      "adf_ewz_level_p": 0.11651802469783634
+    },
+    "full_sample": {
+      "engle_granger_p": 0.2775847468183043,
+      "adf_ewh_level_p": 0.7230890883737611,
+      "adf_ewz_level_p": 0.44334429555456534
+    }
+  },
+  "assumptions": {
+    "cost_bps_per_side": 5.0,
+    "short_borrow_annual": 0.005,
+    "fill": "close of t+1",
+    "formation_days": 504,
+    "test_days": 63
+  },
+  "walk_forward_5bps": {
+    "days": 708,
+    "total_return": -0.11757242607341878,
+    "cagr": -0.0435430399378528,
+    "ann_vol": 0.037485387764379645,
+    "sharpe": -1.1685756188504104,
+    "max_drawdown": -0.11757242607341878,
+    "round_trips": 17,
+    "win_rate": 0.4117647058823529,
+    "avg_win": 0.005089538660592284,
+    "avg_loss": -0.015799445359345445,
+    "pct_days_in_market": 0.04096045197740113,
+    "sharpe_95ci": [
+      -2.0988016558492624,
+      0.43544697729476334
+    ]
+  },
+  "walk_forward_0bps": {
+    "days": 708,
+    "total_return": -0.08877672695170402,
+    "cagr": -0.03254857805433975,
+    "ann_vol": 0.04045672414675281,
+    "sharpe": -0.7974440202769241,
+    "max_drawdown": -0.09381986708861034,
+    "round_trips": 26,
+    "win_rate": 0.5,
+    "avg_win": 0.006351820205384529,
+    "avg_loss": -0.013281994568346675,
+    "pct_days_in_market": 0.062146892655367235
+  },
+  "walk_forward_10bps": {
+    "days": 708,
+    "total_return": -0.11912624111988734,
+    "cagr": -0.044142830188414584,
+    "ann_vol": 0.03145729139737184,
+    "sharpe": -1.4191055748130825,
+    "max_drawdown": -0.11912624111988734,
+    "round_trips": 9,
+    "win_rate": 0.2222222222222222,
+    "avg_win": 0.002233189545441272,
+    "avg_loss": -0.018430986489785885,
+    "pct_days_in_market": 0.01977401129943503
+  },
+  "fixed_params_full_sample_5bps": {
+    "days": 1212,
+    "total_return": 0.009015503841334205,
+    "cagr": 0.0018678535851575084,
+    "ann_vol": 0.04127159901842927,
+    "sharpe": 0.06607436383670894,
+    "max_drawdown": -0.09854922430889179,
+    "round_trips": 47,
+    "win_rate": 0.6382978723404256,
+    "avg_win": 0.007745306983980416,
+    "avg_loss": -0.012899526112033977,
+    "pct_days_in_market": 0.057755775577557754
+  },
+  "lookahead_spread_full_sample_5bps": {
+    "days": 1212,
+    "total_return": -0.048274032593118466,
+    "cagr": -0.010234797344819468,
+    "ann_vol": 0.04175878086285282,
+    "sharpe": -0.22528423657057628,
+    "max_drawdown": -0.09168830056119182,
+    "round_trips": 53,
+    "win_rate": 0.5660377358490566,
+    "avg_win": 0.007159278006177594,
+    "avg_loss": -0.011272396382535903,
+    "pct_days_in_market": 0.06930693069306931
+  },
+  "param_picks": [
+    {
+      "from": "2024-01-05",
+      "q": 0.001,
+      "window": 120,
+      "entry": 2.5,
+      "exit": 0.5,
+      "stop": 3.5
+    },
+    {
+      "from": "2024-04-08",
+      "q": 0.001,
+      "window": 120,
+      "entry": 2.5,
+      "exit": 0.5,
+      "stop": 3.5
+    },
+    {
+      "from": "2024-07-09",
+      "q": 0.001,
+      "window": 60,
+      "entry": 2.5,
+      "exit": 0.0,
+      "stop": 3.5
+    },
+    {
+      "from": "2024-10-07",
+      "q": 1e-05,
+      "window": 60,
+      "entry": 1.5,
+      "exit": 0.0,
+      "stop": 3.5
+    },
+    {
+      "from": "2025-01-07",
+      "q": 0.0001,
+      "window": 60,
+      "entry": 2.0,
+      "exit": 0.0,
+      "stop": 3.5
+    },
+    {
+      "from": "2025-04-09",
+      "q": 0.0001,
+      "window": 60,
+      "entry": 2.0,
+      "exit": 0.0,
+      "stop": 3.5
+    },
+    {
+      "from": "2025-07-11",
+      "q": 0.0001,
+      "window": 30,
+      "entry": 2.0,
+      "exit": 0.0,
+      "stop": 3.5
+    },
+    {
+      "from": "2025-10-09",
+      "q": 0.0001,
+      "window": 30,
+      "entry": 2.0,
+      "exit": 0.0,
+      "stop": 3.5
+    },
+    {
+      "from": "2026-01-09",
+      "q": 0.0001,
+      "window": 30,
+      "entry": 2.0,
+      "exit": 0.5,
+      "stop": 3.5
+    },
+    {
+      "from": "2026-04-13",
+      "q": 0.0001,
+      "window": 30,
+      "entry": 2.0,
+      "exit": 0.5,
+      "stop": 3.5
+    },
+    {
+      "from": "2026-07-14",
+      "q": 1e-05,
+      "window": 120,
+      "entry": 1.5,
+      "exit": 0.5,
+      "stop": 3.5
+    },
+    {
+      "from": "2026-10-12",
+      "q": 1e-05,
+      "window": 30,
+      "entry": 2.0,
+      "exit": 0.5,
+      "stop": 3.5
+    }
+  ]
+}
